@@ -6,6 +6,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+
 class Crypto:
     __backend = default_backend()
     __iterations = 100_000
@@ -15,9 +16,18 @@ class Crypto:
                         b'xcvimy6Rrn7snffE08MwcUOAgfE_iLnc084P0uigQ9aPaOOX1YTZr' \
                         b'rGaXLfQB5Gs1FV7Hp2J1EU1Io7xZnKmR_6heHBnr4XlNdZIQEccY2J082BSaUZy8='
 
+    # Encrypted name of my bot
+    __encrypted_bot_name = b'FSCqUqDGpkWnyVFj9W3s5AABhqCAAAAAAGRbwS4v2EoIlw3RmAxoVdCbOLdzHoww' \
+                           b'SxTulFjAcDOA4Fo4vWaUqkjNYY3vXKdkIXqyQ6lWbC9ogLELMUglQokHV9aTGI7j5h' \
+                           b'X6jrvyBvbLAYlgVg=='
+
     @staticmethod
     def get_token(password: str):
         return Crypto.__password_decrypt(Crypto.__encrypted_token, password).decode()
+
+    @staticmethod
+    def get_bot_name(password: str):
+        return Crypto.__password_decrypt(Crypto.__encrypted_bot_name, password).decode()
 
     @staticmethod
     def __derive_key(password: bytes, salt: bytes) -> bytes:
@@ -28,9 +38,9 @@ class Crypto:
         return b64e(kdf.derive(password))
 
     @staticmethod
-    def __password_encrypt(message: bytes, password: str) -> bytes:
+    def password_encrypt(message: bytes, password: str) -> bytes:
         salt = secrets.token_bytes(16)
-        key = Crypto.__derive_key(password.encode(), salt, Crypto.__iterations)
+        key = Crypto.__derive_key(password.encode(), salt)
         return b64e(
             b'%b%b%b' % (
                 salt,
