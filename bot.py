@@ -4,25 +4,19 @@ import requests
 from encryption import Crypto
 from PIL import Image
 from io import BytesIO
+from urllib.parse import urlparse
 
 
 class Bot:
     def __init__(self):
-        password, bot_name = self.__prompt_password(), None
-
-        if not password:
-            token = self.__prompt_token()
-        else:
-            token, bot_name = Crypto.get_token(password), Crypto.get_bot_name(password)
-
+        token, bot_name = self.__prompt_password()
         self.__run(token, bot_name)
 
     @staticmethod
     def __run(token, bot_name):
         bot = telebot.TeleBot(token)
 
-        print('Successfully started bot polling!\n'
-              'go to telegram and message:')
+        print('Token is valid! Go to telegram and message:')
         if bot_name:
             print(bot_name)
         else:
@@ -32,22 +26,36 @@ class Bot:
               'https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__480.jpg')
 
         @bot.message_handler(func=lambda msg: True)
-        def echo_all(url):
-            image_bytes = Bot.__download_image(url.text)
-
-            if image_bytes:
-                # Send the image back to the user as a PNG in a BytesIO stream
-                bot.send_photo(chat_id=url.chat.id, photo=image_bytes, caption='Here is your image!')
+        def echo_all(reply):
+            text = reply.text
+            validation: bool | str = Bot.__is_valid_url(text)
+            if isinstance(validation, bool):
+                # Download image turn to PNG in BytesIO stream & send it back to the user
+                image_bytes = Bot.__download_image(text)
+                bot.send_photo(chat_id=reply.chat.id, photo=image_bytes, caption='Here is your image!')
             else:
-                bot.reply_to(url, 'This is not an image url try again...')
+                bot.reply_to(reply, validation)
 
         bot.infinity_polling()
 
     @staticmethod
-    def __download_image(image_url):
-        if not image_url.endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif')):
-            return None
+    def __is_valid_url(url: str) -> bool | str:
+        try:
+            result = urlparse(url)
+            is_url: bool = all([result.scheme, result.netloc])
+            print('is_url', is_url)
+            if is_url:
+                if url.endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif')):
+                    return True
+                else:
+                    return 'This url does not lead to an image, try sending a url which does point to one!'
+            else:
+                return 'This is not a url, send a url to an image if you want it back!'
+        except:
+            return 'This is not a url, send a url to an image if you want it back!'
 
+    @staticmethod
+    def __download_image(image_url):
         # Download the image
         response = requests.get(image_url)
         image_content = response.content
@@ -63,17 +71,40 @@ class Bot:
         return image_data
 
     @staticmethod
-    def __prompt_password():
-        pw = input('If you have a password for my bot input password.\n '
-                   'If not press enter.\n'
-                   'Here: ')
-        if pw == '' or len(pw) < 5:
-            return None
+    def __prompt_token() -> str | None:
+        token = input('Since you dont have a password for my bot go to\n'
+                      'Telegram site and make your own,\n'
+                      'Paste its token here:')
+        if Bot.__is_valid_bot_token(token):
+            return token
         else:
-            return pw
+            return None
 
     @staticmethod
-    def __prompt_token():
-        return input('Since you dont have a password for my bot go to\n'
-                     'Telegram site and make your own,\n'
-                     'Paste its token here:')
+    def __is_valid_bot_token(token):
+        try:
+            bot = telebot.TeleBot(token)
+            bot.get_me()
+            return True
+        except:
+            return False
+
+    @staticmethod
+    def __prompt_password():
+        password = input('If you have a password for my bot input password.\nIf not press enter.\nHere: ')
+        if password == '' or len(password) < 5:
+            while True:
+                token = Bot.__prompt_token()
+                if Bot.__is_valid_bot_token(token):
+                    return token, None
+                else:
+                    print('\nInvalid Token\n')
+        else:
+            token = Crypto.get_token(password)
+            bot_name = Crypto.get_bot_name(password)
+            if not (token and bot_name):
+                print('\nInvalid password\n')
+                return Bot.__prompt_password()
+            else:
+                return token, bot_name
+

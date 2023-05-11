@@ -12,22 +12,32 @@ class Crypto:
     __iterations = 100_000
 
     #  Encrypted token to my bot
-    __encrypted_token = b'pa7ILioXcGYyksfXWVYSZgABhqCAAAAAAGRaYRBEYnnulcXaTu' \
-                        b'xcvimy6Rrn7snffE08MwcUOAgfE_iLnc084P0uigQ9aPaOOX1YTZr' \
-                        b'rGaXLfQB5Gs1FV7Hp2J1EU1Io7xZnKmR_6heHBnr4XlNdZIQEccY2J082BSaUZy8='
+    __encrypted_token: bytes = b'pa7ILioXcGYyksfXWVYSZgABhqCAAAAAAGRaYRBEYnnulcXaTu' \
+                               b'xcvimy6Rrn7snffE08MwcUOAgfE_iLnc084P0uigQ9aPaOOX1YTZr' \
+                               b'rGaXLfQB5Gs1FV7Hp2J1EU1Io7xZnKmR_6heHBnr4XlNdZIQEccY2J082BSaUZy8='
 
     # Encrypted name of my bot
-    __encrypted_bot_name = b'FSCqUqDGpkWnyVFj9W3s5AABhqCAAAAAAGRbwS4v2EoIlw3RmAxoVdCbOLdzHoww' \
-                           b'SxTulFjAcDOA4Fo4vWaUqkjNYY3vXKdkIXqyQ6lWbC9ogLELMUglQokHV9aTGI7j5h' \
-                           b'X6jrvyBvbLAYlgVg=='
+    __encrypted_bot_name: bytes = b'FSCqUqDGpkWnyVFj9W3s5AABhqCAAAAAAGRbwS4v2EoIlw3RmAxoVdCbOLdzHoww' \
+                                  b'SxTulFjAcDOA4Fo4vWaUqkjNYY3vXKdkIXqyQ6lWbC9ogLELMUglQokHV9aTGI7j5h' \
+                                  b'X6jrvyBvbLAYlgVg=='
 
     @staticmethod
-    def get_token(password: str):
-        return Crypto.__password_decrypt(Crypto.__encrypted_token, password).decode()
+    def __password_decrypt(encryption: bytes, password: str) -> str | None:
+        try:
+            decoded = b64d(encryption)
+            salt, encryption = decoded[:16], b64e(decoded[20:])
+            key = Crypto.__derive_key(password.encode(), salt)
+            return Fernet(key).decrypt(encryption).decode()
+        except:
+            return None
 
     @staticmethod
-    def get_bot_name(password: str):
-        return Crypto.__password_decrypt(Crypto.__encrypted_bot_name, password).decode()
+    def get_token(password: str) -> str | None:
+        return Crypto.__password_decrypt(Crypto.__encrypted_token, password)
+
+    @staticmethod
+    def get_bot_name(password: str) -> str | None:
+        return Crypto.__password_decrypt(Crypto.__encrypted_bot_name, password)
 
     @staticmethod
     def __derive_key(password: bytes, salt: bytes) -> bytes:
@@ -48,10 +58,3 @@ class Crypto:
                 b64d(Fernet(key).encrypt(message)),
             )
         )
-
-    @staticmethod
-    def __password_decrypt(token: bytes, password: str) -> bytes:
-        decoded = b64d(token)
-        salt, token = decoded[:16], b64e(decoded[20:])
-        key = Crypto.__derive_key(password.encode(), salt)
-        return Fernet(key).decrypt(token)
