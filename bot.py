@@ -43,7 +43,6 @@ class Bot:
         try:
             result = urlparse(url)
             is_url: bool = all([result.scheme, result.netloc])
-            print('is_url', is_url)
             if is_url:
                 if url.endswith(('jpg', 'jpeg', 'png', 'bmp', 'gif')):
                     return True
